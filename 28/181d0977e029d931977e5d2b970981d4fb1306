@@ -1,0 +1,21 @@
+src/metrics/db.rs
+  s_d3e9b6a607c955::t_889204ce36f69c 936-953
+src/commands/show_prompt.rs
+  s_d3e9b6a607c955::t_31b644228a5d38 1,5,7,17-18,20,25-43,46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "28181d0977e029d931977e5d2b970981d4fb1306",
+  "prompts": {},
+  "sessions": {
+    "s_d3e9b6a607c955": {
+      "agent_id": {
+        "tool": "gemini",
+        "id": "ad82d0b7-07cf-46fe-b7ae-13688043b90c",
+        "model": "gemini-3.1-pro-preview-customtools"
+      },
+      "human_author": "Brett Tofel <btofel@redhat.com>"
+    }
+  }
+}
