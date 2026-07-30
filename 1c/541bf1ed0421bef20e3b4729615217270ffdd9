@@ -1,0 +1,23 @@
+src/metrics/db.rs
+  s_d3e9b6a607c955::t_b4e6e1bb913c42 954-988
+  s_d3e9b6a607c955::t_889204ce36f69c 936-953
+src/commands/show_prompt.rs
+  s_d3e9b6a607c955::t_31b644228a5d38 1,5,18-19,21,26,41-42
+  s_d3e9b6a607c955::t_c79000570d4bbd 7-8,27-40,43-59,61-63,65,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.19",
+  "base_commit_sha": "1c541bf1ed0421bef20e3b4729615217270ffdd9",
+  "prompts": {},
+  "sessions": {
+    "s_d3e9b6a607c955": {
+      "agent_id": {
+        "tool": "gemini",
+        "id": "ad82d0b7-07cf-46fe-b7ae-13688043b90c",
+        "model": "gemini-3.1-pro-preview-customtools"
+      },
+      "human_author": null
+    }
+  }
+}
