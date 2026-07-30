@@ -933,6 +933,59 @@ impl MetricsDatabase {
         Ok(count as usize)
     }
 
+    /// Retrieve the raw event JSON by trace ID.
+    pub fn get_event_json_by_trace_id(
+        &self,
+        trace_id: &str,
+    ) -> Result<Option<String>, GitAiError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT event_json FROM metrics WHERE trace_id = ?1 ORDER BY id DESC LIMIT 1")?;
+        let mut rows = stmt.query(params![trace_id])?;
+
+        if let Some(row) = rows.next()? {
+            let event_json: String = row.get(0)?;
+            Ok(Some(event_json))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Retrieve the session ID associated with a trace ID.
+    pub fn get_session_id_by_trace_id(
+        &self,
+        trace_id: &str,
+    ) -> Result<Option<String>, GitAiError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT session_id FROM metrics WHERE trace_id = ?1 AND session_id IS NOT NULL ORDER BY id DESC LIMIT 1")?;
+        let mut rows = stmt.query(params![trace_id])?;
+
+        if let Some(row) = rows.next()? {
+            let session_id: String = row.get(0)?;
+            Ok(Some(session_id))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Retrieve all session events (event_kind = 5) for a given session ID.
+    pub fn get_session_events(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<String>, GitAiError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT event_json FROM metrics WHERE session_id = ?1 AND event_kind = 5 ORDER BY event_ts ASC, id ASC")?;
+        let rows = stmt.query_map(params![session_id], |row| row.get(0))?;
+
+        let mut events = Vec::new();
+        for row in rows {
+            events.push(row?);
+        }
+        Ok(events)
+    }
+
     /// Query persisted metric rows since `since_ts` (Unix seconds).
     ///
     /// When `repo_filter` is `Some(url)`, only events matching that repo_url are returned.

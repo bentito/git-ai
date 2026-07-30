@@ -1,12 +1,11 @@
-use crate::authorship::prompt_utils::find_prompt;
-use crate::git::find_repository;
+use crate::metrics::db::MetricsDatabase;
 
 /// Handle the `show-prompt` command
 ///
-/// Usage: `git-ai show-prompt <prompt_id> [--commit <rev>] [--offset <n>]`
+/// Usage: `git-ai show-prompt <trace_id>`
 ///
-/// Returns the prompt object from the authorship note where the given prompt ID is found.
-/// By default returns from the most recent commit containing the prompt.
+/// Returns the session events (prompts/transcripts) from the local metrics database
+/// for the session associated with the given trace ID.
 pub fn handle_show_prompt(args: &[String]) {
     let parsed = match parse_args(args) {
         Ok(p) => p,
@@ -16,35 +15,61 @@ pub fn handle_show_prompt(args: &[String]) {
         }
     };
 
-    let repo = match find_repository(&Vec::<String>::new()) {
-        Ok(repo) => repo,
+    let db = match MetricsDatabase::global() {
+        Ok(db) => db,
         Err(e) => {
-            eprintln!("Failed to find repository: {}", e);
+            eprintln!("Failed to open metrics database: {}", e);
             std::process::exit(1);
         }
     };
 
-    match find_prompt(
-        &repo,
-        &parsed.prompt_id,
-        parsed.commit.as_deref(),
-        parsed.offset,
-    ) {
-        Ok((commit_sha, prompt_record)) => {
-            // Output the prompt as JSON, including the commit SHA for context
-            // Note: messages will be empty if they were uploaded to CAS (legacy behavior)
+    let db_guard = db.lock().unwrap();
+
+    // 1. Resolve trace_id or session_id to session_id
+    let session_id = if parsed.prompt_id.starts_with("s_") {
+        parsed.prompt_id.split("::").next().unwrap().to_string()
+    } else {
+        match db_guard.get_session_id_by_trace_id(&parsed.prompt_id) {
+            Ok(Some(sid)) => sid,
+            Ok(None) => {
+                eprintln!("Error: Trace ID not found or has no associated session in local metrics DB: {}", parsed.prompt_id);
+                std::process::exit(1);
+            }
+            Err(e) => {
+                eprintln!("Error querying metrics database: {}", e);
+                std::process::exit(1);
+            }
+        }
+    };
+
+    // 2. Fetch all SessionEvents for that session
+    match db_guard.get_session_events(&session_id) {
+        Ok(events) => {
+            if events.is_empty() {
+                eprintln!("No prompt events found for session {}", session_id);
+                std::process::exit(1);
+            }
+
+            let mut parsed_events = Vec::new();
+            for event_str in events {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&event_str) {
+                    parsed_events.push(json);
+                }
+            }
+
             let output = serde_json::json!({
-                "commit": commit_sha,
-                "prompt_id": parsed.prompt_id,
-                "prompt": prompt_record,
+                "trace_id": parsed.prompt_id,
+                "session_id": session_id,
+                "session_events": parsed_events,
             });
+
             println!(
                 "{}",
                 serde_json::to_string_pretty(&output).unwrap_or_else(|_| "{}".to_string())
             );
         }
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error querying session events: {}", e);
             std::process::exit(1);
         }
     }
