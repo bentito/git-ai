@@ -87,14 +87,34 @@ impl Agent for GeminiAgent {
         let mut sessions = Vec::new();
 
         for path in paths {
-            // Gemini session_id from the hook payload matches the file stem
-            let Some(external_session_id) = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .map(|s| s.to_string())
-            else {
-                continue;
+            let mut external_session_id = None;
+
+            // Try to read the first line to get the true sessionId
+            if let Ok(file) = std::fs::File::open(&path) {
+                use std::io::{BufRead, BufReader};
+                if let Some(Ok(line)) = BufReader::new(file).lines().next() {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
+                        if let Some(id) = json.get("sessionId").and_then(|v| v.as_str()) {
+                            external_session_id = Some(id.to_string());
+                        }
+                    }
+                }
+            }
+
+            let external_session_id = match external_session_id {
+                Some(id) => id,
+                None => {
+                    let Some(id) = path
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .map(|s| s.to_string())
+                    else {
+                        continue;
+                    };
+                    id
+                }
             };
+
             let session_id = generate_session_id(&external_session_id, "gemini");
 
             let session = DiscoveredSession {
